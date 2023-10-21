@@ -1,29 +1,38 @@
+"""
+Functions used to use the dentate spikes classification model.
+Created on Fri Oct 20 2023
+
+Author: Manfredi Castelli - manfredi.castelli@ndcn.ox.ac.uk
+"""
+# Libraries import
+
 import numpy as np
 import seaborn as sns
 
 import utils
 from scipy import stats
 
-####### PARAMS #######################
+####### PARAMS ###############################
 winL_ms = 200
 talen = int(2 * (winL_ms / utils.DTT))
 talenh = int(talen / 2)
-taxis = mc.DTT * (np.arange(-talenh, talenh, 1))
+taxis = utils.DTT * (np.arange(-talenh, talenh, 1))
 f_low = 50  # Hz
 
 nclass = 2
-col_paired = sns.color_palette('Paired', 20)
-## Load model that can predict LM CSD from ca1 LFP
-filename = './dspikes_class.CSD.model'
+PURPLE = sns.hls_palette(10,l=.45,s=1)[8]
+GREEN = sns.hls_palette(8,l=.4,s=.8)[3]
+colors_DSs = [GREEN,PURPLE]
+
+## Load model that can predict dentate spike type from the LFP of the dentate gyrus
+filename = './Data/dSpikesClassifier.model'
 
 model_saved = np.load(filename, allow_pickle=True)
 model = model_saved['model']
 model_info = model_saved['info']
 refLFP_gr = model_info['refLFP']
 
-
 ####### FUNCTIONS ############################
-
 def model_report():
     print('#### REPORT ON TRAINED MODEL ####')
     utils.describe_data(model_info['dataset'])
@@ -71,7 +80,7 @@ def predictionReport(class_pred):
 
 def plotClassPred(lfp_ds_GR, class_pred, ax=None):
     import matplotlib.pyplot as plt
-
+    plt.figure(figsize=(5,3))
     if ax is None:
         ax = plt.gca()
     for classi in range(nclass):
@@ -79,10 +88,9 @@ def plotClassPred(lfp_ds_GR, class_pred, ax=None):
 
         mu = lfp_ds_GR[idx].mean(0)
         sem = stats.sem(lfp_ds_GR[idx], axis=0)
-        utils.plt_Mean_ErrArea(taxis, mu, sem, color=col_paired[2 + classi], label='DS' + str(classi + 1), ax=ax)
-    ax.set_xlabel('Time from peak (ms)', fontdict=mc.fontdict)
-    ax.set_ylabel('LFP (mV)', fontdict=mc.fontdict)
-    plt.legend()
+        utils.plt_Mean_ErrArea(taxis, mu, sem, color=colors_DSs[classi], label='DS' + str(classi + 1), ax=ax)
+    ax.set_xlabel('Time from peak (ms)', fontdict=utils.fontdict)
+    ax.set_ylabel('LFP (mV)', fontdict=utils.fontdict)
     utils.AdjustBoxPlot(ax=ax)
 
 
@@ -167,8 +175,6 @@ def detectDSpikes(lfps,ch,refch=0,mininumDelay = int(50*1.25)):
     OUTPUTS:
     DSpikes: times correponding to DSspikes occurence in samples
     '''
-    from peakdetect import detect_peaks
-
     lfp_c = np.array([])
     # Subtract Referenc LFP from DG Channel
     lfp0 = lfps[ch,:]-lfps[refch,:]
@@ -178,14 +184,14 @@ def detectDSpikes(lfps,ch,refch=0,mininumDelay = int(50*1.25)):
     # Set threshold for detection
     thrs = np.median(np.abs(lfp_c))*7
 
-    dspikes = detect_peaks(lfp_,mph=thrs,mpd=mininumDelay)
+    dspikes = utils.detect_peaks(lfp_,mph=thrs,mpd=mininumDelay)
     return dspikes
 
-def runDSpikes_detection(lfps, dg_chi=-1):
+def runDSpikes_detection(lfps,dg_chi=-1):
     '''
     Detect DSpikes and their profile
     Returns dSpikes, lfp_ds,profile_ds
-
+    
     INPUTS:
     lfp: lfp signal from gr. cell layer in DG (sampling rate = 1250 Hz)
     dg_chi: channel in DG to be used to dentate spikes detection
@@ -195,74 +201,4 @@ def runDSpikes_detection(lfps, dg_chi=-1):
     '''
 
     ## DETECT DSpikes
-    return detectDSpikes(lfps, dg_chi, refch=0)len=400):
-    '''
-    Detect DSpikes and their profile
-    Returns dSpikes, lfp_ds,profile_ds
-
-    INPUTS:
-    b: basefile of recording
-    rewrite: rewrite saved results
-    asList: if True will return DSPikes for each session separately; else will stack them all together
-    spacing: channles spacing in probes in um
-    TAlen: window in ms used to trigger the lfp
-
-    OUTPUTS:
-    DSpikes: eeg times corresponding to DSspikes
-    lfps_ds: is the lfp across all channels triggered for all DSpikes
-    dsProfile: profile of DSpikes from CSD analysis
-    '''
-    from mc_CSDanalysis3 import detectDSpikes, getDSpikeProfile
-
-    layers = getProbeProf(b)
-    try:
-        grChi = layers['gr']
-    except:
-        print('NO GR LAYER FOUND!')
-        return
-
-    stages = vbf.LoadStages(b)
-    sIs = vbf.getSessionsIs(stages, allow_stim=True, b=b)
-    TAlen = int(TAlen / DTT)  # get win in ee
-    #  CHECK IF DATA EXISTS and LOAD IT
-    fname = b + '.DSpikes.events'
-    if (os.path.exists(fname)) and (not rewrite):
-        dspikes = np.load(fname, allow_pickle=True)
-        df = np.load(b + '.DSpikes.features', allow_pickle=True)
-        if asList:
-            return dspikes, df['lfp_ds'], df['profile']
-        else:
-            return np.hstack(dspikes), df['lfp_ds'], df['profile']
-
-    ### Detect DS ############################################
-    vbf.printTime('      detecting DSpikes - ')
-    ########## LOAD LFPS  ############################
-    # lfps = []
-    # for si in range(len(stages)):
-    #  s = si + 1
-    # bs = b + '_' + str(s)
-    # lfps.append( lfp2mV * vbf.loadlfps(bs))# load lfps
-    lfps = [lfp2mV * vbf.loadlfps(b + '_' + str(si + 1)) for si in range(len(stages))]
-    ## DETECT DSpikes
-    dspikes = detectDSpikes(lfps, grChi, sIs['sb'])
-    dsProfile = getDSpikeProfile(lfps, dspikes, sIs['sb'], spacing=spacing, pyrCh=layers['pyr'])
-
-    lfps_ds = []
-    validDSpikes = []
-    for sii, si in enumerate(sIs['sb']):
-        lfps_ds.extend(vbf.triggeredAverage(lfps[si], dspikes[sii], taLen=TAlen, average=False)[0])
-        validDSpikes.append(dspikes[sii][getEventsInWin(dspikes[sii], int(TAlen / 2) + 1, len(lfps[si][0]))])
-
-    lfps_ds = np.array(lfps_ds)
-    ## SAVE
-    fname = b + '.DSpikes.events'
-    save(fname, validDSpikes)
-
-    fname = b + '.DSpikes.features'
-    df = {'lfp_ds': lfps_ds, 'profile': dsProfile}
-    save(fname, df)
-
-    if asList:
-        return dspikes, df['lfp_ds'], df['profile']
-    else:
-        return np.hstack(dspikes), df['lfp_ds'], df['profile']
+    return detectDSpikes(lfps,dg_chi,refch=0)
