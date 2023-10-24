@@ -25,7 +25,7 @@ GREEN = sns.hls_palette(8,l=.4,s=.8)[3]
 colors_DSs = [GREEN,PURPLE]
 
 ## Load model that can predict dentate spike type from the LFP of the dentate gyrus
-filename = './Data/dSpikesClassifier.model'
+filename = './Data/dSpikesClassifier_py10.model'
 
 model_saved = np.load(filename, allow_pickle=True)
 model = model_saved['model']
