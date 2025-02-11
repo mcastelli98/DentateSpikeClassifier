@@ -65,7 +65,7 @@ def triggerLFP(lfps, dspikes):
 def preProcessing(X):
     '''
     The preProcessing consists into 2 steps:
-    1) Low pass lfp with 4th Order Butterworth filter with cut-off 50 Hz
+    1) Low pass lfp with 4th Order Butterworth filter with cut-off 30 Hz
     2) z-score each LFP trace
     '''
     X = utils.lowpass(X, f_low)  # low pass filter lfp
@@ -112,7 +112,7 @@ def matchCh2ref(lfp_ds, trodes):
 
 def predictDS_class(lfps, dspikes=None, GRchi=None, trodes=None, plot=False, report=False):
     '''
-    Estimates DS class from model (accuracy 85% after k=20 cross validation)
+    Estimates DS class from model (accuracy 82% after k=1,000 cross validation)
     return DSclass_pred, lfp_ds_GR, dspikes
 
     INPUTS:
